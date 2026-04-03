@@ -85,10 +85,11 @@ summary(health_lifestyle_ds02)
 
 
 #---------------------statut tabagique--------------------
-#créer nouvelle colonne pour smoking oui/non
+
 #Renaming the dataset before adding new column
 health_lifestyle_ds03 <- health_lifestyle_ds02 
 
+#créer nouvelle colonne pour smoking oui/non
 #remplacer o/1 par NS/S pour non smoker/smoker
 health_lifestyle_ds03$Smoking_Status <- 
   factor(health_lifestyle_ds03$Smoking_Status, 
@@ -113,7 +114,7 @@ for (v in vars) {
 
 
 
-
+#distribution des variables quantitatives (pertinent???)
 health_lifestyle_ds03 %>%
   select(where(is.numeric)) %>%
   pivot_longer(everything()) %>%
@@ -313,7 +314,7 @@ arsenal::write2word(
 #########tester linéarité du modèle (cours 8)
 #Faire un graphique de nuage de points entre x et y
 # Nuage de points
-plot(health_lifestyle_ds04$Health_Score, health_lifestyle_ds04$Sleep_Hours,
+plot(health_lifestyle_ds04$Sleep_Hours,health_lifestyle_ds04$Health_Score,
      xlab = "Heures de sommeil",
      ylab = "Indice de santé",
      pch = 16, col = "grey40")
@@ -329,9 +330,10 @@ plot(health_lifestyle_ds04$Health_Score, health_lifestyle_ds04$Sleep_Hours,
 #Question de recherche: Quelle est l’association entre l’indice santé et les heures de sommeil?
 #Modèle de régression simple
 mod1_simple <- lm(Health_Score ~ Sleep_Hours, data = health_lifestyle_ds04)
+abline(mod1_simple,col = "red", lwd = 2)
 summary(mod1_simple)
 confint(mod1_simple)
-
+abline(mod1_simple,col = "red", lwd = 2)
 
 #Modèle de régression linéaire multiple avec âge seulement
 mod2_mult<- lm(Health_Score ~ Sleep_Hours+Age, data = health_lifestyle_ds04)
