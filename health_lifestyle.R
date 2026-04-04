@@ -39,15 +39,15 @@ health_lifestyle_ds_EB_FN <-
 
 health_lifestyle_ds_FN <- health_lifestyle_ds_EB_FN
 
-if( ! file.exists( health_lifestyle_ds_FN ) )
-{
-  health_lifestyle_ds_FN <- health_lifestyle_ds_DT_FN
-  
-  if( ! file.exists( health_lifestyle_ds_FN ) )
-  {
-    stop( "health_lifestyle input dataset not found!" )
-  }
-}
+#if( ! file.exists( health_lifestyle_ds_FN ) )
+#{
+ # health_lifestyle_ds_FN <- health_lifestyle_ds_DT_FN
+  #
+#  if( ! file.exists( health_lifestyle_ds_FN ) )
+#  {
+#    stop( "health_lifestyle input dataset not found!" )
+#  }
+#}
 
 
 # dataset first version before any manipulation of data
@@ -310,13 +310,16 @@ arsenal::write2word(
 #--------------------------------------------------------------ANALYSE
 #-----------------------------------------------------------------------------
 
-
+#------------------------------MODELE------------------------------------------
 #########tester linéarité du modèle (cours 8)
 #Faire un graphique de nuage de points entre x et y
 # Nuage de points
+par(mfrow = c(1, 1))
+
 plot(health_lifestyle_ds04$Sleep_Hours,health_lifestyle_ds04$Health_Score,
      xlab = "Heures de sommeil",
      ylab = "Indice de santé",
+     main= "Linéarité",
      pch = 16, col = "grey40")
 
 
@@ -333,8 +336,9 @@ mod1_simple <- lm(Health_Score ~ Sleep_Hours, data = health_lifestyle_ds04)
 abline(mod1_simple,col = "red", lwd = 2)
 summary(mod1_simple)
 confint(mod1_simple)
-abline(mod1_simple,col = "red", lwd = 2)
 
+
+################NON
 #Modèle de régression linéaire multiple avec âge seulement
 mod2_mult<- lm(Health_Score ~ Sleep_Hours+Age, data = health_lifestyle_ds04)
 summary(mod2_mult)
@@ -352,26 +356,126 @@ summary(mod3_mult)
 confint(mod3_mult)
 
 
-#Interaction ou modificateur d'effet? Âge
-mod3_mult<- lm(Health_Score ~ Sleep_Hours*Age
+#Modèle avec âge come modificateur d'effet
+mod4_mult<- lm(Health_Score ~ Sleep_Hours*Age
                +Exercise_Frequency
                +Diet_Quality
                +Smoking_Status
                +Alcohol_Consumption
                , data = health_lifestyle_ds04)
-summary(mod3_mult)
-confint(mod3_mult)
+summary(mod4_mult)
+confint(mod4_mult)
 
-emtrends(mod3_mult,~Age, var="Sleep_Hours")
-#emtrends à faire par groupe d'âge
+emtrends(mod4_mult,~Age, var="Sleep_Hours")
+#emtrends à faire par groupe d'âge??? malgré que modidification d'effet non-significatif?
 #18-40, 40-60, 60-80, 80+
 #emtrends(mod3_mult, ~ Age, var = "Sleep_Hours", at = list(stress = Age_groups))
 
-#analyse de sensibilité pour BMI?
-#comment choisir interaction?
+#----------------------------DIAGNOSTICS--------------------------------------
 
+#----------Mesures d'influence
+#????Est-ce qu'on fait les analyses de résidus sur le modèle simple ou complet?
+
+
+#Distance de cook
+cook1 <- cooks.distance(mod1_simple)
+which(cook1 > 1)
+which(cook1 > 0.5)
+cook1
+
+cook3 <- cooks.distance(mod3_mult)
+which(cook3 > 1)
+which(cook3 > 0.5)
+cook3
+
+#DFBETAS
+dfb1 <- dfbetas(mod1_simple) 
+drapeau1 <- apply(abs(dfb1) > 1, 1, any)
+which(drapeau1)
+
+dfb1[drapeau1, ]
+coef(mod1_simple)
+
+dfb3 <- dfbetas(mod3_mult) 
+drapeau3 <- apply(abs(dfb3) > 1, 1, any)
+which(drapeau3)
+
+dfb3[drapeau3, ]
+coef(mod3_mult)
+
+#DFFITS
+dff1 <- dffits(mod1_simple)
+n<-887
+pp1<-2
+seuil_dff1 <- 3 * sqrt(pp1 / (n - pp1))
+which(abs(dff1) > seuil_dff1)
+
+dff3 <- dffits(mod3_mult)
+n<-887
+pp3<-12
+seuil_dff3 <- 3 * sqrt(pp3 / (n - pp3))
+which(abs(dff3) > seuil_dff3)
+
+
+#----------------------------Homoscédasticité
+
+ychapeau3=fitted(mod3_mult)
+r3 <- rstandard(mod3_mult)
+plot(ychapeau3, r3)
+
+#graphique bizarre, sandwich?
+plot(mod3_mult)
+
+
+library(sandwich); library(lmtest); library(car)
+coeftest(mod3_mult,vcov=vcovHC(mod3_mult,type = "HC3"))                                         
+Confint(mod3_mult,vcov.=vcovHC(mod3_mult,type="HC3"))
 
 #analyse de résidus, diagnostique, analyse de sensibilité si variable influente
 
 
-#test 1
+#---------------------------Linéarité
+
+plot(health_lifestyle_ds04$Sleep_Hours,health_lifestyle_ds04$Health_Score,
+     xlab = "Heures de sommeil",
+     ylab = "Indice de santé",
+     main= "Linéarité",
+     pch = 16, col = "grey40")
+
+
+mod.lin <- lm(Health_Score ~ Sleep_Hours, data = health_lifestyle_ds04)
+
+mod.quad <- lm(Health_Score ~ Sleep_Hours + I(Sleep_Hours^2), data = health_lifestyle_ds04)
+
+library(splines)
+mod.ns <- lm(Health_Score ~ ns(Sleep_Hours, df = 4), data = health_lifestyle_ds04)
+
+
+
+## 3) Grille de x pour tracer les relations estimées
+xg <- seq(min(health_lifestyle_ds04$Sleep_Hours), max(health_lifestyle_ds04$Sleep_Hours), length.out = 300)
+newdat <- data.frame( Sleep_Hours= xg)
+
+pred.lin  <- predict(mod.lin,  newdata = newdat)
+pred.quad <- predict(mod.quad, newdata = newdat)
+pred.ns   <- predict(mod.ns,   newdata = newdat)
+
+## 4) Graphique : données + 3 courbes estimées
+plot(health_lifestyle_ds04$Sleep_Hours,health_lifestyle_ds04$Health_Score, pch = 16, cex = 0.7,
+     xlab = "Heures de sommeil", ylab = "Indice de santé",
+     main = "Relations estimées")
+
+lines(xg, pred.lin,  lwd = 2, lty = 1)
+lines(xg, pred.quad, lwd = 2, lty = 2, col = 'blue')
+lines(xg, pred.ns,   lwd = 2, lty = 3, col = 'red')
+
+legend("bottomright",
+       legend = c("Modèle linéaire",
+                  "Modèle quadratique",
+                  "Spline naturelle (df = 4)"),
+       lty = c(1, 2, 3),
+       lwd = 2,
+       bty = "n")
+
+
+
